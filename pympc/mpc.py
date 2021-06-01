@@ -8,7 +8,7 @@ def solve_lqr_ip(A: np.array, B: np.array, C:np.array, lambd: float):
     """
     return 0
 
-def mpc_to_qp(x, A, B, C, Q, R, N):
+def mpc_to_qp(x, A, B, C, Q, R, ulim, N):
     """
     Sources:
         Slides 7 - 13 of https://ocw.mit.edu/courses/aeronautics-and-astronautics/16-323-principles-of-optimal-control-spring-2008/lecture-notes/lec16.pdf
@@ -17,11 +17,12 @@ def mpc_to_qp(x, A, B, C, Q, R, N):
     A: n_x by n_x
     B: n_x by n_u
     C: n_y by n_x
+    ulim: 2 by n_u
     G: (N+1) * n_y by n_x
     H: (N+1) * n_y by n_u * (N+1)
     Z: N+1 * n_y by 1
     U: N+1 * n_u by 1
-    W1: N+1 * n_y by N+1 * n_y+1
+    W1: N+1 * n_y by N+1 * n_y
     W2: N+1 * n_u by N+1 * n_u
     C: 2 * ((N+1) * n_u), (N+1) * n_u)
     (u_m = 2 * n_u by 1)
@@ -32,9 +33,9 @@ def mpc_to_qp(x, A, B, C, Q, R, N):
     G = np.zeros(((N+1) * n_y, n_x))
     H = np.zeros(((N+1) * n_y, n_u * (N+1)))
     for i in range(N+1):
-        G[n_y * i:n_y * (i+1), : ] = C @ A**i
+        G[n_y * i:n_y * (i+1), : ] = C @ np.linalg.matrix_power(A, i)
         for j in range(i):
-            h_res = C @ A ** (i-(j+1)) @ B
+            h_res = C @ np.linalg.matrix_power(A,(i-(j+1))) @ B
             H[n_y * i:n_y * (i+1), n_u * j : n_u * (j+1)] = h_res
 
     W_1 = np.zeros(((N+1) * n_y, (N+1) * n_y))
@@ -42,17 +43,21 @@ def mpc_to_qp(x, A, B, C, Q, R, N):
     for i in range(N+1):
         for j in range(N+1):
             W_1[n_y * i :n_y * (i+1), n_y * j : n_y * (j+1)] = Q
-            W_1[n_u * i :n_u * (i+1), n_u * j : n_u * (j+1)] = R
+            W_2[n_u * i :n_u * (i+1), n_u * j : n_u * (j+1)] = R
 
     #H_1 = G.T @ W_1 @ G
     H_2 = 2 * (np.dot(x.T, G.T) @ W_1 @ H)
     H_3 = 2 * (H.T @ W_1 @ H + W_2)
 
     C = np.zeros((2 * ((N+1) * n_u), (N+1) * n_u))
+    ulim_arr = np.zeros((N * 2 * n_u, 1))
     for d in range(N+1):
         C[n_u * d :n_u * (d+1), n_u * d : n_u * (d+1)] = - np.eye(n_u)
         C[n_u * (d + N + 1) :n_u * ((d+N + 1)+1), n_u * d : n_u * (d+1)] = np.eye(n_u)
-    return H_2.T, H_3, C
+    for d in range(N):
+        ulim_arr[n_u * d :n_u * (d+1), :] = -ulim[0][np.newaxis].T
+        ulim_arr[n_u * (d + N ) :n_u * (d + N + 1 ), :] = ulim[0][np.newaxis].T
+    return -H_2.T, H_3, C, ulim_arr
 
 def solve_qp_ip(B, b, A, d, tol = 1e-2, sigma = .1):
     """ Solves the quadratic problem Outlined in source 2 using the interior point method.
@@ -120,8 +125,9 @@ B = np.array([[1, .2], [.5, .3], [.1, .4]])
 C = np.eye(3)
 Q = np.eye(3)
 R = np.eye(2)
+ulims = np.array([[-1, -1], [1, 1]])
 N = 2
-print(mpc_to_qp(x, A, B, C, Q, R, N))
+print(mpc_to_qp(x, A, B, C, Q, R,ulims, N))
 """
 
 """
