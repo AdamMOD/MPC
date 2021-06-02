@@ -59,14 +59,15 @@ def mpc_to_qp(x, A, B, C, Q, R, ulim, N):
         ulim_arr[n_u * (d + N ) :n_u * (d + N + 1 ), :] = ulim[0][np.newaxis].T
     return -H_2.T, H_3, C, ulim_arr
 
-def solve_qp_ip(B, b, A, d, tol = 1e-2, sigma = .1):
+def solve_qp_ip(B, b, A, d, tol = 1e-10, sigma = .1):
     """ Solves the quadratic problem Outlined in source 2 using the interior point method.
+        min .5 x.T B x - x.T b st Ax <= d
     Sources: 
         Algorithm 1 in A Microcontroller Implementation of Constrained Model Predictive Control by Abbes et al.
         3.6 in https://www.math.uh.edu/~rohop/fall_06/Chapter3.pdf
     """
     n = B.shape[0]
-    x0 = np.zeros(n)
+    x0 = np.zeros(n) #np.ones(n) * 1e-5 
     x_old = np.ones(n) * tol * 10
     z0 = d - A @ x0
     mu0 = np.ones(n)
@@ -109,6 +110,10 @@ def solve_qp_ip(B, b, A, d, tol = 1e-2, sigma = .1):
         x = x + alpha * dx
         z = z + alpha * dz
         mu = mu + alpha * dmu
+        feval = .5 * x.T @ B @ x - x.T @ b
+        constrs = A @ x
+        sigma = sigma / 5
+        print(feval)
     return x
 
 def calculate_alpha_ip(x, z, mu, dx, dz, dmu):
@@ -129,7 +134,6 @@ ulims = np.array([[-1, -1], [1, 1]])
 N = 2
 print(mpc_to_qp(x, A, B, C, Q, R,ulims, N))
 """
-
 """
 #Testing interior point solver
 B = np.array([[14, 0, 4, 6], [0, 1, 0, 0], [4, 0, 5, 6], [6, 0, 6, 10]])
@@ -139,6 +143,23 @@ d = np.ones(4) * 10
 
 print(solve_qp_ip(B, b, A, d))
 """
+
+#Testing interior point solver
+B = np.array([[   3.0529 ,   2.7291  ,  1.3065],
+    [2.7291  ,  2.5611 ,   1.3928],
+   [ 1.3065   , 1.3928 ,   2.0111]])
+b = -1 * np.array([0.0357,
+    0.8491,
+    0.9340])
+A = np.array([[0.9649 ,   0.9572   , 0.1419],
+   [ 0.1576   , 0.4854   , 0.4218],
+   [ 0.9706 ,   0.8003  ,  0.9157]])
+d = np.array([    0.7922,
+    0.9595,
+    0.6557]) * 10
+
+print(solve_qp_ip(B, b, A, d))
+
 """
 #Testing alpha calculation outlined in Algorithm 1 in A Microcontroller Implementation
 x = np.ones(3)

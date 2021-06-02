@@ -9,7 +9,7 @@ B = np.array([[.5, .01], [1, .01]]) * .1
 C = np.eye(2)
 Q = np.eye(2)
 R = np.eye(2) * .1
-upper_lim = 100
+upper_lim = 0.1
 ulim = np.array([[-upper_lim, -upper_lim],[1, 1]])
 lqrcontroller = np.array([[1.398, 5.068],[.044, .0299]])
 
