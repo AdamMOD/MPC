@@ -1,5 +1,11 @@
 import numpy as np
 
+import quadprog
+def solve_qp_ip_ext(B, b, A, d, full=False):
+    if(not full):
+        return quadprog.solve_qp(B, b, C=-A, b=-d)[0]
+    else:  
+        return quadprog.solve_qp(B, b, C=-A, b=-d)
 
 
 def solve_lqr_ip(A: np.array, B: np.array, C:np.array, lambd: float):
@@ -59,7 +65,7 @@ def mpc_to_qp(x, A, B, C, Q, R, ulim, N):
         ulim_arr[n_u * (d + N ) :n_u * (d + N + 1 ), :] = ulim[0][np.newaxis].T
     return -H_2.T, H_3, C, ulim_arr
 
-def solve_qp_ip(B, b, A, d, tol = 1e-10, sigma = .1):
+def solve_qp_ip(B, b, A, d, tol = 1e-10, sigma = .1,iters=False):
     """ Solves the quadratic problem Outlined in source 2 using the interior point method.
         min .5 x.T B x - x.T b st Ax <= d
     Sources: 
@@ -75,6 +81,7 @@ def solve_qp_ip(B, b, A, d, tol = 1e-10, sigma = .1):
     x_list = []
     z_list  = []
     mu_list  = []
+    x_iters = []
 
     x = x0
     z = z0
@@ -114,6 +121,9 @@ def solve_qp_ip(B, b, A, d, tol = 1e-10, sigma = .1):
         constrs = A @ x
         sigma = sigma / 5
         print(feval)
+        x_iters.append(x)
+    if(iters):
+        return np.array(x_iters)
     return x
 
 def calculate_alpha_ip(x, z, mu, dx, dz, dmu):
@@ -136,14 +146,16 @@ print(mpc_to_qp(x, A, B, C, Q, R,ulims, N))
 """
 """
 #Testing interior point solver
-B = np.array([[14, 0, 4, 6], [0, 1, 0, 0], [4, 0, 5, 6], [6, 0, 6, 10]])
-b = - 1 *  np.ones(4)
-A = np.eye(4)
-d = np.ones(4) * 10
+B = np.array([[14.0, 0, 4, 6], [0, 1, 0, 0], [4, 0, 5, 6], [6, 0, 6, 10]])
+b = - 1.0 *  np.ones(4)
+A = np.eye(4) * 1.0
+d = np.ones(4) * 10.0
 
 print(solve_qp_ip(B, b, A, d))
+print(solve_qp_ip_ext(B, b, A, d, full=True))
 """
 
+"""
 #Testing interior point solver
 B = np.array([[   3.0529 ,   2.7291  ,  1.3065],
     [2.7291  ,  2.5611 ,   1.3928],
@@ -156,9 +168,11 @@ A = np.array([[0.9649 ,   0.9572   , 0.1419],
    [ 0.9706 ,   0.8003  ,  0.9157]])
 d = np.array([    0.7922,
     0.9595,
-    0.6557]) * 10
+    0.6557]) 
 
 print(solve_qp_ip(B, b, A, d))
+print(solve_qp_ip_ext(B, b, A, d, full=True))
+"""
 
 """
 #Testing alpha calculation outlined in Algorithm 1 in A Microcontroller Implementation
